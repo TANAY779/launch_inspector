@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "launch-inspector"
+version = "0.1.0"
+description = "Static dry-run analyzer, linter, and architecture visualizer for ROS 2 launch files."
+readme = "README.md"
+authors = [{ name = "ROS 2 Engineering Community" }]
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+launch-inspector = "launch_inspector.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["launch_inspector*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
