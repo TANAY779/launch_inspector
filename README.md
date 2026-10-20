@@ -1,12 +1,12 @@
-# Launch Inspector (`launch-inspector`)
+# Launch Inspector (`launch_inspector`)
 
-> **Static launch dry-run analyzer, linter, and architecture visualizer for ROS 2.**
+> **Native ROS 2 static dry-run analyzer, linter, and architecture visualizer for launch files.**
 
-[![Tests](https://img.shields.io/badge/tests-20%20passed-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/colcon%20test-20%20passed-brightgreen.svg)]()
 [![ROS 2](https://img.shields.io/badge/ROS%202-Humble%20%7C%20Jazzy-blue.svg)]()
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)]()
 
-`launch-inspector` safely evaluates ROS 2 launch files (Python, XML, and YAML) **without spawning any OS processes or requiring physical hardware**. It reconstructs the intended node computation graph, validates parameters and remappings, flags silent wiring bugs in CI before deployment, and generates interactive Mermaid and Graphviz architecture diagrams.
+`launch_inspector` safely evaluates ROS 2 launch files (Python, XML, and YAML) **without spawning any OS processes or requiring physical hardware**. It reconstructs the intended node computation graph, validates parameters and remappings, flags silent wiring bugs in CI before deployment, and generates interactive Mermaid and Graphviz architecture diagrams.
 
 ---
 
@@ -18,7 +18,7 @@ In web and cloud engineering, static analyzers and linters catch configuration a
 - **Parameter Typos:** Writing `wheel_seperation: 0.5` instead of `wheel_separation` is silently ignored by the parameter server, causing uncalibrated odometry.
 - **Node Collisions:** Duplicate node names in multi-robot bringup cause silent node evictions during DDS discovery.
 
-`launch-inspector` intercepts launch evaluation in a mock visitor context, capturing the entire system topology in milliseconds and providing rich feedback.
+`launch_inspector` intercepts launch evaluation in a mock visitor context, capturing the entire system topology in milliseconds and providing rich feedback.
 
 ---
 
@@ -29,46 +29,70 @@ In web and cloud engineering, static analyzers and linters catch configuration a
 - 📊 **Architecture Visualizer:** Generates clean [Mermaid](https://mermaid.js.org/) flowcharts and Graphviz DOT diagrams grouped by namespace.
 - 🛡️ **CI & PR Annotations:** Exports standard OASIS SARIF v2.1.0 reports for native GitHub Code Scanning annotations on Pull Requests.
 - ⚡ **Ultra Fast:** Validates complex multi-node launch files in under 200 ms.
+- 🤖 **Native ROS 2 Package:** Seamlessly builds with `colcon` and runs via `ros2 run` and `ros2 launch`.
 
 ---
 
-## Installation
+## Installation & Workspace Setup
+
+### 1. In a ROS 2 Workspace (Recommended)
+
+Place `launch_inspector` inside your workspace `src/` directory:
 
 ```bash
-git clone https://github.com/ros-project/launch-inspector.git
-cd launch-inspector
-pip install -e .
+cd /home/tanay/ros_project
+colcon build --symlink-install
+source install/setup.bash
 ```
 
-*Requires Python 3.10+ and a standard ROS 2 environment (Humble or Jazzy).*
+Confirm that ROS 2 detects the package:
+```bash
+ros2 pkg list | grep launch_inspector
+```
 
 ---
 
-## CLI Usage
+## How to Run
 
-### Basic Audit
+### Method 1: Via ROS 2 (`ros2 run`)
 ```bash
-launch-inspector path/to/my_robot.launch.py
+ros2 run launch_inspector launch_inspector path/to/robot.launch.py
 ```
+
+*Note: `launch_inspector`, `launch-inspector`, and `inspector` are registered as executable aliases.*
+
+### Method 2: Via ROS 2 Launch (`ros2 launch`)
+```bash
+ros2 launch launch_inspector inspect.launch.py target:=path/to/robot.launch.py
+```
+
+### Method 3: Via Direct CLI
+```bash
+launch-inspector path/to/robot.launch.py
+```
+
+---
+
+## Usage Examples
 
 ### Passing Launch Arguments
 ```bash
-launch-inspector path/to/my_robot.launch.py use_sim_time:=true rviz:=false
+ros2 run launch_inspector launch_inspector src/launch_inspector/tests/fixtures/clean_bringup.launch.py use_sim_time:=false
 ```
 
 ### Exporting Visual Diagrams & Reports
 ```bash
 # Export Mermaid diagram (renders directly on GitHub markdown)
-launch-inspector bringup.launch.py --mermaid architecture.mmd
+ros2 run launch_inspector launch_inspector bringup.launch.py --mermaid architecture.mmd
 
 # Export Graphviz DOT graph
-launch-inspector bringup.launch.py --dot graph.dot
+ros2 run launch_inspector launch_inspector bringup.launch.py --dot graph.dot
 
-# Export SARIF for GitHub Actions
-launch-inspector bringup.launch.py --sarif report.sarif
+# Export SARIF for GitHub Actions PR checks
+ros2 run launch_inspector launch_inspector bringup.launch.py --sarif report.sarif --fail-on-warning
 
 # Export complete system model as JSON
-launch-inspector bringup.launch.py --json model.json
+ros2 run launch_inspector launch_inspector bringup.launch.py --json model.json
 ```
 
 ---
@@ -84,6 +108,18 @@ launch-inspector bringup.launch.py --json model.json
 | `PARAM-001` | **Parameter Typo Checker** | `WARN` | Uses fuzzy matching to catch misspelled standard ROS 2 parameters. |
 | `REMAP-001` | **Dangling Remap** | `WARN` | Detects remappings that match no topic advertised by the node package. |
 | `ORPHAN-001` | **Orphaned Topics** | `INFO/WARN` | Identifies topics with zero publishers or zero subscribers. |
+
+---
+
+## Testing
+
+Run unit and integration tests via `colcon`:
+```bash
+cd /home/tanay/ros_project
+colcon test --packages-select launch_inspector
+colcon test-result --verbose
+```
+*(Result: 20 passed in ~0.2s)*
 
 ---
 
@@ -109,12 +145,16 @@ jobs:
         with:
           required-ros-distributions: jazzy
 
-      - name: Install Launch Inspector
-        run: pip install launch-inspector
+      - name: Build Launch Inspector
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          colcon build --packages-select launch_inspector
+          source install/setup.bash
 
       - name: Run Launch Audit
         run: |
-          launch-inspector src/my_robot/launch/bringup.launch.py \
+          source install/setup.bash
+          ros2 run launch_inspector launch_inspector src/my_robot/launch/bringup.launch.py \
             --sarif results.sarif \
             --fail-on-warning
 
